@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.junit.jupiter.api.Assertions;
@@ -73,6 +74,9 @@ class ReflectorTest {
   }
 
   static class Section extends AbstractEntity implements Entity<Long> {
+    public Map<String, Map<String, String>> getMap(){
+      return null;
+    }
   }
 
   @Test
