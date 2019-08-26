@@ -7,9 +7,7 @@ import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.apache.ibatis.reflection.property.PropertyNamer;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.lang.reflect.ReflectPermission;
+import java.lang.reflect.*;
 import java.text.MessageFormat;
 import java.util.*;
 
@@ -21,7 +19,7 @@ public class Reflector {
 //    private final String[] writablePropertyNames;
 //    private final Map<String, Invoker> setMethods = new HashMap<>();
     private final Map<String, Invoker> getMethods = new HashMap<>();
-//    private final Map<String, Class<?>> setTypes = new HashMap<>();
+    //    private final Map<String, Class<?>> setTypes = new HashMap<>();
     private final Map<String, Class<?>> getTypes = new HashMap<>();
     private Constructor<?> defaultConstructor;
 
@@ -85,13 +83,13 @@ public class Reflector {
                 } else if (winnerReturnType.isAssignableFrom(candidateReturnType)) {
                     // 如果 winnerReturnType 是 candidateReturnType 的父类，则取子类 candidate
                     winner = candidate;
-                }else {
+                } else {
                     isAmbiguous = true;
                     break;
                 }
             }
             // 2. 添加到 getMethods 和 getTypes 中
-            addGetMethod(propertyName , winner , isAmbiguous);
+            addGetMethod(propertyName, winner, isAmbiguous);
         }
 
 
@@ -102,6 +100,31 @@ public class Reflector {
         MethodInvoker methodInvoker = isAmbiguous ? new AmbiguousMethodInvoker(method, MessageFormat.format("非法的getter方法：在 ''{0}'' 类中存在模糊不清的属性''{1}''", method.getDeclaringClass().getName(), propertyName))
                 : new MethodInvoker(method);
         getMethods.put(propertyName, methodInvoker);
+        // 解析方法的返回值类型
+        Type returnType = TypeParameterResolver.resolveReturnType(method, this.type);
+        getTypes.put(propertyName, typeToClass(returnType));
+    }
+
+    // Type -> Class
+    private Class<?> typeToClass(Type src) {
+        Class<?> result = null;
+        if (src instanceof Class) {
+            result = (Class<?>) src;
+        } else if (src instanceof ParameterizedType) {
+            result = (Class<?>) ((ParameterizedType)src).getRawType();
+        } else if (src instanceof GenericArrayType) {
+            Type componentType = ((GenericArrayType) src).getGenericComponentType();
+            if (componentType instanceof Class) {
+                result = Array.newInstance((Class<?>)componentType , 0).getClass();
+            }else{
+                Class<?> componentClass = typeToClass(componentType);
+                result = Array.newInstance(componentClass, 0).getClass();
+            }
+        }
+        if (result == null) {
+            return Object.class;
+        }
+        return result;
     }
 
     // 获得 clazz 的所有方法，包括父类和接口的

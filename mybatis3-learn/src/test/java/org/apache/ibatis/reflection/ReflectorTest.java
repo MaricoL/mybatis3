@@ -15,7 +15,6 @@ public class ReflectorTest {
     @Test
     public void Test2() {
         Reflector reflector = new Reflector(Section.class);
-
     }
 
     interface Entity<T>{
