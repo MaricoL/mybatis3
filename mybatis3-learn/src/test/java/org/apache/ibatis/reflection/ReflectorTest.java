@@ -2,33 +2,65 @@ package org.apache.ibatis.reflection;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 public class ReflectorTest {
 
     @Test
     public void Test1() {
         Reflector reflector = new Reflector(Section.class);
-        System.out.println(reflector.getDefaultConstructor());
+        assertNotNull(reflector.getDefaultConstructor());
     }
 
+    @Test
+    public void Test2() {
+        Reflector reflector = new Reflector(Section.class);
 
-    static class Section {
-        private String name;
-        private Integer age;
+    }
 
-        public String getName() {
-            return name;
+    interface Entity<T>{
+        T getId();
+
+        void setId(T id);
+    }
+    static abstract class AbstractEntity implements Entity<Long>{
+        private Long id;
+        private boolean isTrue;
+
+        public Long getId() {
+            return id;
         }
 
-        public void setName(String name) {
-            this.name = name;
+        public void setId(Long id) {
+            this.id = id;
         }
 
-        public Integer getAge() {
-            return age;
+        public boolean isTrue() {
+            return isTrue;
         }
 
-        public void setAge(Integer age) {
-            this.age = age;
+        public void setTrue(boolean aTrue) {
+            isTrue = aTrue;
+        }
+    }
+
+    static class Section extends AbstractEntity implements Entity<Long>{
+        private Long id;
+        private boolean isTrue;
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+        public boolean isTrue() {
+            return isTrue;
+        }
+
+        public void setTrue(boolean aTrue) {
+            isTrue = aTrue;
         }
     }
 }
