@@ -91,43 +91,6 @@ public class Reflector {
     resolveGetterConflicts(conflictingGetters);
   }
 
-  static class ABC{
-    private String name;
-    private Integer age;
-
-    public ABC(String name, Integer age) {
-      this.name = name;
-      this.age = age;
-    }
-
-    public String getName() {
-      return name;
-    }
-    public String getNameB() {
-      return name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
-    }
-
-    public Integer getAge() {
-      return age;
-    }
-
-    public void setAge(Integer age) {
-      this.age = age;
-    }
-  }
-  public static void main(String[] args) {
-    Reflector reflector = new Reflector(ABC.class);
-    System.out.println(reflector.setMethods);
-    System.out.println(reflector.getMethods);
-    System.out.println(reflector.setTypes);
-    System.out.println(reflector.getTypes);
-
-  }
-
 
   private void resolveGetterConflicts(Map<String, List<Method>> conflictingGetters) {
     for (Entry<String, List<Method>> entry : conflictingGetters.entrySet()) {

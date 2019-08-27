@@ -231,6 +231,7 @@ class TypeParameterResolverTest {
   @Test
   void testReturn_Lv2ArrayOfList() throws Exception {
     Class<?> clazz = Level2Mapper.class;
+    /*   List<N>[] selectArrayOfList(); */
     Method method = clazz.getMethod("selectArrayOfList");
     Type result = TypeParameterResolver.resolveReturnType(method, clazz);
     assertTrue(result instanceof GenericArrayType);

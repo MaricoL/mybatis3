@@ -30,4 +30,9 @@ public final class PropertyNamer {
     public static boolean isGetter(String name) {
         return name.startsWith("get") && name.length() > 3 || name.startsWith("is") && name.length() > 2;
     }
+
+    // 以 set 开头，说明是 setter 方法
+    public static boolean isSetter(String name) {
+        return name.startsWith("set") && name.length() > 3;
+    }
 }

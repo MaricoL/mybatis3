@@ -74,8 +74,18 @@ class ReflectorTest {
   }
 
   static class Section extends AbstractEntity implements Entity<Long> {
+    private Long id;
+
     public Map<String, Map<String, String>> getMap(){
       return null;
+    }
+
+    public void setId(Short id) {
+      this.id = 2L;
+    }
+
+    public void setId(Integer id) {
+      this.id = 1L;
     }
   }
 

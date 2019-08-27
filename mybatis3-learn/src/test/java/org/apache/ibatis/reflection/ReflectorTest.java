@@ -24,7 +24,6 @@ public class ReflectorTest {
     }
     static abstract class AbstractEntity implements Entity<Long>{
         private Long id;
-        private boolean isTrue;
 
         public Long getId() {
             return id;
@@ -34,18 +33,10 @@ public class ReflectorTest {
             this.id = id;
         }
 
-        public boolean isTrue() {
-            return isTrue;
-        }
-
-        public void setTrue(boolean aTrue) {
-            isTrue = aTrue;
-        }
     }
 
     static class Section extends AbstractEntity implements Entity<Long>{
         private Long id;
-        private boolean isTrue;
 
         public Long getId() {
             return id;
@@ -54,12 +45,10 @@ public class ReflectorTest {
         public void setId(Long id) {
             this.id = id;
         }
-        public boolean isTrue() {
-            return isTrue;
+
+        public void setId(Integer id) {
+            this.id = 2L;
         }
 
-        public void setTrue(boolean aTrue) {
-            isTrue = aTrue;
-        }
     }
 }
