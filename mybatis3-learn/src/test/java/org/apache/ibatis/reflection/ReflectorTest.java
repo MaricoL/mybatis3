@@ -46,7 +46,7 @@ public class ReflectorTest {
             this.id = id;
         }
 
-        public void setId(Integer id) {
+        public void setId(Long id , Long id2) {
             this.id = 2L;
         }
 

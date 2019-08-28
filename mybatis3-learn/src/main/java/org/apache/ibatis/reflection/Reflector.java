@@ -19,7 +19,7 @@ public class Reflector {
 //    private final String[] writablePropertyNames;
     private final Map<String, Invoker> setMethods = new HashMap<>();
     private final Map<String, Invoker> getMethods = new HashMap<>();
-        private final Map<String, Class<?>> setTypes = new HashMap<>();
+    private final Map<String, Class<?>> setTypes = new HashMap<>();
     private final Map<String, Class<?>> getTypes = new HashMap<>();
     private Constructor<?> defaultConstructor;
 
@@ -78,13 +78,13 @@ public class Reflector {
             boolean isGetterAmbiguous = getMethods.get(propertyName) instanceof AmbiguousMethodInvoker;
             // 当前属性对应的 setter 方法是否模糊不清
             boolean isSetterAmbiguous = false;
-            Class<?> matchParameterType = null;
-            Class<?> setterParameterType = null;
+            // 如果有模糊不清的 setter 方法的时候，返回 match 和 setter 方法的参数列表的类型
+            // 以便打印错误信息
+            Map<String, Class<?>> ambiguousClassMap = new HashMap<>();
             // 最匹配的 setter 方法
             Method match = null;
             // 遍历 setters 方法集合，找到与当前属性最匹配的 setter 方法
             for (Method setter : setters) {
-                isSetterAmbiguous = false;
                 // 如果当前对象的 getter 方法不模糊 并且
                 // getter 方法的返回值类型与 当前遍历的 setter 方法 的参数列表的第一个参数类型一致
                 // 则 优先匹配
@@ -98,29 +98,41 @@ public class Reflector {
                     continue;
                 }
 
-                // 继续判断是否有更适合的 setter 方法，根据 setter 方法参数列表中的第一个参数类型来判断
-                matchParameterType = match.getParameterTypes()[0];
-                setterParameterType = setter.getParameterTypes()[0];
-                if (setterParameterType.isAssignableFrom(matchParameterType)) {
-                    // setterParameterType 是 matchParameterType 的父类，取子类matchParameterType，因此无需改变
-                } else if (matchParameterType.isAssignableFrom(setterParameterType)) {
-                    // matchParameterType 是 setterParameterType 的父类，取子类 setterParameterType
-                    match = setter;
-                } else {
-                    isSetterAmbiguous = true;
+                // 如果 setter 方法没有模糊不清，则继续匹配更适合的 setter 方法
+                if (!isSetterAmbiguous) {
+                    match = pickBetterSetter(match, setter, ambiguousClassMap);
+                    isSetterAmbiguous = match == null;
                 }
+
             }
-            addSetMethod(propertyName, match, isSetterAmbiguous , matchParameterType , setterParameterType);
+            addSetMethod(propertyName, match, isSetterAmbiguous, ambiguousClassMap);
 
         }
 
     }
 
+    // 匹配更适合的 Setter 方法
+    private Method pickBetterSetter(Method match, Method setter, Map<String, Class<?>> ambiguousClassMap) {
+        // 继续判断是否有更适合的 setter 方法，根据 setter 方法参数列表中的第一个参数类型来判断
+        Class<?> setter1 = match.getParameterTypes()[0];
+        Class<?> setter2 = setter.getParameterTypes()[0];
+        if (setter2.isAssignableFrom(setter1)) {
+            // setter2 是 setter1 的父类，取子类 setter1，因此无需改变
+        } else if (setter1.isAssignableFrom(setter2)) {
+            // setter1 是 setter2 的父类，取子类 setter2
+            match = setter;
+        } else {
+            ambiguousClassMap.putIfAbsent("matchParameterType", setter1);
+            ambiguousClassMap.putIfAbsent("setterParameterType", setter2);
+        }
+        return null;
+    }
+
     // 将 propertyName-setterMethod 映射关系添加到 setMethods 和 setTypes 中
-    private void addSetMethod(String propertyName, Method match, boolean isSetterAmbiguous, Class<?> matchParameterType, Class<?> setterParameterType) {
+    private void addSetMethod(String propertyName, Method match, boolean isSetterAmbiguous, Map<String, Class<?>> ambiguousClassMap) {
         MethodInvoker invoker = isSetterAmbiguous ? new AmbiguousMethodInvoker(match,
                 MessageFormat.format("在类''{0}''中，''{1}}'' 字段的setter方法参数类型模糊不清，\n" +
-                        "分别为''{2}'' , ''{3}'' ", match.getDeclaringClass(), propertyName, matchParameterType, setterParameterType))
+                        "分别为''{2}'' , ''{3}'' ", match.getDeclaringClass(), propertyName, ambiguousClassMap.get("matchParameterType"), ambiguousClassMap.get("setterParameterType")))
                 : new MethodInvoker(match);
         setMethods.put(propertyName, invoker);
         Type[] types = TypeParameterResolver.resolveParamType(match, this.type);
