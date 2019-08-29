@@ -26,6 +26,6 @@ public interface ReflectorFactory {
   // 设置是否缓存
   void setClassCacheEnabled(boolean classCacheEnabled);
 
-  // 获取 Reflector  对象
+  // 获取 Reflector 对象
   Reflector findForClass(Class<?> type);
 }

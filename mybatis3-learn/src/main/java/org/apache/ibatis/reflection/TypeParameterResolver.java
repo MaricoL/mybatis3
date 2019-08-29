@@ -1,11 +1,8 @@
 package org.apache.ibatis.reflection;
 
-import com.sun.javafx.tools.packager.Param;
-import sun.net.www.content.text.Generic;
 
 import java.lang.reflect.*;
 import java.util.Arrays;
-import java.util.function.Supplier;
 
 public class TypeParameterResolver {
 
@@ -27,12 +24,19 @@ public class TypeParameterResolver {
         return parameterTypes;
     }
 
+    // 解析字段类型
+    public static Type resolveFieldType(Field field, Type srcType) {
+        Type genericType = field.getGenericType();
+        Class<?> declaringClass = field.getDeclaringClass();
+        return resolveType(genericType, srcType, declaringClass);
+    }
+
 
 
     // 解析类型
     private static Type resolveType(Type type, Type srcType, Class<?> declaringClass) {
         if (type instanceof TypeVariable) {
-//            resolveTypeVar((TypeVariable) type, srcType, declaringClass);
+            resolveTypeVar((TypeVariable) type, srcType, declaringClass);
             return null;
         } else if (type instanceof ParameterizedType) {
             return resolveParameterizedType((ParameterizedType) type, srcType, declaringClass);
@@ -64,7 +68,7 @@ public class TypeParameterResolver {
         Type componentType = type.getGenericComponentType();
         Type resolvedComponentType = null;
         if (componentType instanceof TypeVariable) {
-//            resolvedComponentType = resolveTypeVar((TypeVariable) componentType, srcType, declaringClass);
+            resolvedComponentType = resolveTypeVar((TypeVariable) componentType, srcType, declaringClass);
         } else if (componentType instanceof ParameterizedType) {
             resolvedComponentType = resolveParameterizedType((ParameterizedType) componentType, srcType, declaringClass);
         } else if (componentType instanceof GenericArrayType) {
@@ -175,6 +179,8 @@ public class TypeParameterResolver {
         }
         return noChange ? parentType : new ParameterizedTypeImpl((Class<?>) parentType.getRawType(), newParentArgs , null);
     }
+
+
 
 
     static class ParameterizedTypeImpl implements ParameterizedType{

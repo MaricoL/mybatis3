@@ -2,9 +2,7 @@ package org.apache.ibatis.reflection;
 
 
 import org.apache.ibatis.exceptions.ReflectionException;
-import org.apache.ibatis.reflection.invoker.AmbiguousMethodInvoker;
-import org.apache.ibatis.reflection.invoker.Invoker;
-import org.apache.ibatis.reflection.invoker.MethodInvoker;
+import org.apache.ibatis.reflection.invoker.*;
 import org.apache.ibatis.reflection.property.PropertyNamer;
 
 import java.lang.reflect.*;
@@ -15,8 +13,9 @@ public class Reflector {
 
     // 当前所需要解析类的Class对象
     private final Class<?> type;
-    //    private final String[] readablePropertyNames;
-//    private final String[] writablePropertyNames;
+    private final String[] readablePropertyNames;
+    private final String[] writablePropertyNames;
+    private Map<String, String> caseInsensitivePropertyMap = new HashMap<>();
     private final Map<String, Invoker> setMethods = new HashMap<>();
     private final Map<String, Invoker> getMethods = new HashMap<>();
     private final Map<String, Class<?>> setTypes = new HashMap<>();
@@ -31,7 +30,22 @@ public class Reflector {
         addGetMethods(clazz);
         // 根据setter方法获得属性名-getter方法调用者映射map
         addSetMethods(clazz);
+        // 有些字段没有对应的 getter、setter 方法，就直接使用字段来赋值
+        addFields(clazz);
+
+        // 所有可读字段属性
+        readablePropertyNames = getMethods.keySet().toArray(new String[0]);
+        // 所有可写字段属性
+        writablePropertyNames = setMethods.keySet().toArray(new String[0]);
+        // 属性字段忽略小写map
+        for (String readablePropertyName : readablePropertyNames) {
+            caseInsensitivePropertyMap.putIfAbsent(readablePropertyName, readablePropertyName.toUpperCase(Locale.ENGLISH));
+        }
+        for (String writablePropertyName : writablePropertyNames) {
+            caseInsensitivePropertyMap.putIfAbsent(writablePropertyName, writablePropertyName.toUpperCase(Locale.ENGLISH));
+        }
     }
+
 
     // 解析默认无参构造函数
     private void addDefaultConstructor(Class<?> clazz) {
@@ -65,6 +79,49 @@ public class Reflector {
                 .forEach(m -> addMethodConflict(conflictingSetters, PropertyNamer.methodToProperty(m.getName()), m));
         // 解决冲突的setter方法，最终一个属性仅保留一个setter方法
         resolveSetterConflicts(conflictingSetters);
+    }
+
+    // 有些字段没有对应的 getter、setter 方法，就直接使用字段来赋值
+    private void addFields(Class<?> clazz) {
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+            // 如果该字段没有 setter 方法，则将该字段添加到 setMethods 和 setTypes 中
+            if (!setMethods.containsKey(field.getName())) {
+                // 如果该字段为 static final，则只能被类加载器设值，不提供 setter 方法
+                // 如果该字段为 final，则可以通过反射进行修改
+                int modifiers = field.getModifiers();
+                if (!(Modifier.isFinal(modifiers) && Modifier.isStatic(modifiers))) {
+                    addSetField(field);
+                }
+            }
+            // 如果该字段没有 getter 方法，则将该字段添加到 getMethods 和 getTypes 中
+            if (!getMethods.containsKey(field.getName())) {
+                addGetField(field);
+            }
+        }
+        // 递归 查找clazz的父类是否有字段需要添加
+        if (clazz.getSuperclass() != null) {
+            addFields(clazz.getSuperclass());
+        }
+
+    }
+
+    // 添加 field 到 getMethods 和 getTypes
+    private void addGetField(Field field) {
+        if (isValidPropertyName(field.getName())) {
+            getMethods.put(field.getName(), new GetFieldInvoker(field));
+            Type type = TypeParameterResolver.resolveFieldType(field, this.type);
+            getTypes.put(field.getName(), typeToClass(type));
+        }
+    }
+
+    // 添加 field 到 setMethods 和 setTypes
+    private void addSetField(Field field) {
+        if (isValidPropertyName(field.getName())) {
+            setMethods.put(field.getName(), new SetFieldInvoker(field));
+            Type fieldType = TypeParameterResolver.resolveFieldType(field, this.type);
+            setTypes.put(field.getName(), typeToClass(fieldType));
+        }
     }
 
     // 解决冲突的setter方法（与 resolveGetterConflicts() 方法处理稍有不同）
@@ -296,4 +353,55 @@ public class Reflector {
         }
         return true;
     }
+
+    // 根据属性名获得对应的 setter方法 调用者
+    public Invoker getSetInvoker(String propertyName) {
+        return Optional.ofNullable(setMethods.get(propertyName))
+                .orElseThrow(() -> new ReflectionException("在 " + this.type + " 类中找不到字段名为 " + propertyName + " 的 setter 方法！！"));
+    }
+
+    // 根据属性名获得对应的 setter 方法的返回值类型
+    public Type getsetterType(String propertyName) {
+        return Optional.ofNullable(setTypes.get(propertyName))
+                .orElseThrow(() -> new ReflectionException("在 " + this.type + " 类中找不到字段名为 " + propertyName + " 的 setter 方法的返回值类型！！"));
+    }
+
+    // 根据属性名获得对应的 getter 方法 调用者
+    public Invoker getGetInvoker(String propertyName) {
+        return Optional.ofNullable(getMethods.get(propertyName))
+                .orElseThrow(() -> new ReflectionException("在 " + this.type + " 类中找不到字段名为 " + propertyName + " 的 getter 方法！！"));
+    }
+
+    // 根据属性名获得对应的 getter 方法的返回值类型
+    public Type getGetterType(String propertyName) {
+        return Optional.ofNullable(getTypes.get(propertyName))
+                .orElseThrow(() -> new ReflectionException("在 " + this.type + " 类中找不到字段名为 " + propertyName + " 的 getter 方法的返回值类型！！"));
+    }
+
+    // 获取所有可读取的属性字段名集合
+    public String[] getReadablePropertyNames() {
+        return readablePropertyNames;
+    }
+
+    // 获取所有可写的属性字段名集合
+    public String[] getWritablePropertyNames() {
+        return writablePropertyNames;
+    }
+
+    // 根据属性字段判断是否有 setter 方法
+    public boolean hasSetter(String propertyName) {
+        return setMethods.containsKey(propertyName);
+    }
+
+    // 根据属性字段判断是否有 getter 方法
+    public boolean hasGetter(String propertyName) {
+        return getMethods.containsKey(propertyName);
+    }
+
+    // 根据属性字段名从 不区分大小写的map 中获取属性名（此方法用于下划线属性名转驼峰命名）
+    public String findPropertyName(String propertyName) {
+        return caseInsensitivePropertyMap.get(propertyName.toUpperCase(Locale.ENGLISH));
+    }
+
+
 }
