@@ -27,7 +27,7 @@ public class DefaultObjectFactory implements ObjectFactory, Serializable {
 
 
     @Override
-    public <T> boolean isCollection(Class<?> type) {
+    public <T> boolean isCollection(Class<T> type) {
         return Collections.class.isAssignableFrom(type);
     }
 
