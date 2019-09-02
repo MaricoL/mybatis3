@@ -1,4 +1,4 @@
-package org.apache.ibatis.exceptions;
+package org.apache.ibatis.reflection;
 
 public class ReflectionException extends RuntimeException {
 

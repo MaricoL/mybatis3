@@ -24,11 +24,12 @@ public class DefaultReflectorFactory implements ReflectorFactory{
         this.classCacheEnabled = classCacheEnabled;
     }
 
+    // 如果开启缓存，则先从 reflectorMap 中寻找
     @Override
     public Reflector findForClass(Class<?> clazz) {
         if (classCacheEnabled) {
-
+            return reflectorMap.computeIfAbsent(clazz, Reflector::new);
         }
-        return null;
+        return new Reflector(clazz);
     }
 }
