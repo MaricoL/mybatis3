@@ -17,12 +17,13 @@ public class DefaultObjectFactory implements ObjectFactory, Serializable {
         return create(type, null, null);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> T create(Class<T> type, List<Class<?>> constructorArgsTypes, List<Object> constructorArgs) {
         // 1. 解析 type 类型
         Class<?> classToCreate = resolveInterface(type);
         // 2. 实例化类
-        return instantiateClass(type, constructorArgsTypes, constructorArgs);
+        return (T)instantiateClass(classToCreate, constructorArgsTypes, constructorArgs);
     }
 
 
@@ -78,6 +79,12 @@ public class DefaultObjectFactory implements ObjectFactory, Serializable {
         }
     }
 
+    /**
+     * 对常用的集合接口，返回对应的实现类
+     * TODO: review
+     * @param type
+     * @return
+     */
     protected Class<?> resolveInterface(Class<?> type) {
         Class<?> classToCreate;
         if (type == List.class || type == Collection.class || type == Iterable.class) {

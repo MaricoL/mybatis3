@@ -1,7 +1,6 @@
 package org.apache.ibatis.reflection;
 
 
-import org.apache.ibatis.exceptions.ReflectionException;
 import org.apache.ibatis.reflection.invoker.*;
 import org.apache.ibatis.reflection.property.PropertyNamer;
 
@@ -39,10 +38,10 @@ public class Reflector {
         writablePropertyNames = setMethods.keySet().toArray(new String[0]);
         // 属性字段忽略小写map
         for (String readablePropertyName : readablePropertyNames) {
-            caseInsensitivePropertyMap.putIfAbsent(readablePropertyName, readablePropertyName.toUpperCase(Locale.ENGLISH));
+            caseInsensitivePropertyMap.putIfAbsent(readablePropertyName.toUpperCase(Locale.ENGLISH), readablePropertyName);
         }
         for (String writablePropertyName : writablePropertyNames) {
-            caseInsensitivePropertyMap.putIfAbsent(writablePropertyName, writablePropertyName.toUpperCase(Locale.ENGLISH));
+            caseInsensitivePropertyMap.putIfAbsent(writablePropertyName.toUpperCase(Locale.ENGLISH), writablePropertyName);
         }
     }
 
@@ -361,7 +360,7 @@ public class Reflector {
     }
 
     // 根据属性名获得对应的 setter 方法的返回值类型
-    public Type getsetterType(String propertyName) {
+    public Class<?> getsetterType(String propertyName) {
         return Optional.ofNullable(setTypes.get(propertyName))
                 .orElseThrow(() -> new ReflectionException("在 " + this.type + " 类中找不到字段名为 " + propertyName + " 的 setter 方法的返回值类型！！"));
     }
@@ -373,7 +372,7 @@ public class Reflector {
     }
 
     // 根据属性名获得对应的 getter 方法的返回值类型
-    public Type getGetterType(String propertyName) {
+    public Class<?> getGetterType(String propertyName) {
         return Optional.ofNullable(getTypes.get(propertyName))
                 .orElseThrow(() -> new ReflectionException("在 " + this.type + " 类中找不到字段名为 " + propertyName + " 的 getter 方法的返回值类型！！"));
     }
@@ -403,5 +402,9 @@ public class Reflector {
         return caseInsensitivePropertyMap.get(propertyName.toUpperCase(Locale.ENGLISH));
     }
 
+    // 返回当前类 Class 对象
+    public Class<?> getType() {
+        return type;
+    }
 
 }

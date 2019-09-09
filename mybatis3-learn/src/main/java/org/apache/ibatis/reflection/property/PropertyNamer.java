@@ -1,21 +1,22 @@
 package org.apache.ibatis.reflection.property;
 
-import org.apache.ibatis.exceptions.ReflectionException;
+import org.apache.ibatis.reflection.ReflectionException;
 
 import java.util.Locale;
 
 public final class PropertyNamer {
 
-    private PropertyNamer(){}
+    private PropertyNamer() {
+    }
 
     // 根据方法名获得属性名
     public static String methodToProperty(String name) {
         // 从方法名中截取属性名
         if (name.startsWith("is")) {
             name = name.substring(2);
-        }else if (name.startsWith("get") || name.startsWith("set")) {
+        } else if (name.startsWith("get") || name.startsWith("set")) {
             name = name.substring(3);
-        }else{
+        } else {
             throw new ReflectionException("无法解析该方法名：" + name + "。该方法名不是以 is 或 get 或 set开头！");
         }
 

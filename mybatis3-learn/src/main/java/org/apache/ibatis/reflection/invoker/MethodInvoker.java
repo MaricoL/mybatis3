@@ -8,9 +8,9 @@ import java.lang.reflect.Method;
 public class MethodInvoker implements Invoker {
     // 如果是 getter 方法，则为 方法返回值类型
     // 如果是 setter 方法，则为 形参类型
-    public Class<?> type;
+    private final Class<?> type;
     // method 方法对象
-    public Method method;
+    private final Method method;
 
     public MethodInvoker(Method method) {
         this.method = method;
