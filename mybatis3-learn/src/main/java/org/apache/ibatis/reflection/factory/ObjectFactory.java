@@ -11,7 +11,7 @@ public interface ObjectFactory {
 
     // 设置属性
     default void setProperties(Properties properties){
-        
+
     }
 
 
