@@ -378,12 +378,12 @@ public class Reflector {
     }
 
     // 获取所有可读取的属性字段名集合
-    public String[] getReadablePropertyNames() {
+    public String[] getGetablePropertyNames() {
         return readablePropertyNames;
     }
 
     // 获取所有可写的属性字段名集合
-    public String[] getWritablePropertyNames() {
+    public String[] getSetablePropertyNames() {
         return writablePropertyNames;
     }
 

@@ -38,6 +38,12 @@ public class MetaClass {
         return MetaClass.forClass(getterType, reflectorFactory);
     }
 
+    // 根据表达式获取属性名
+    public String findProperty(String name) {
+        StringBuilder sb = buildProperty(name, new StringBuilder());
+        return sb.length() > 0 ? sb.toString() : null;
+    }
+
     // 根据表达式获取属性名（是否要 下划线 转 驼峰）
     public String findProperty(String name, boolean useCamelCaseMapping) {
         // 是否要 下划线 转 驼峰
@@ -47,10 +53,14 @@ public class MetaClass {
         return findProperty(name);
     }
 
-    // 根据表达式获取属性名
-    public String findProperty(String name) {
-        StringBuilder sb = buildProperty(name, new StringBuilder());
-        return sb.length() > 0 ? sb.toString() : null;
+    // 获得所有的 getter 方法所对应字段的名字（即：类中所有可读字段）
+    public String[] getGetterNames() {
+        return reflector.getGetablePropertyNames();
+    }
+
+    // 获得所有的 setter 方法所对应字段的名字（即：类中所有的可写字段）
+    public String[] getSetterNames() {
+        return reflector.getSetablePropertyNames();
     }
 
     // 根据 name 构建属性名
