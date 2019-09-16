@@ -18,7 +18,7 @@ class MetaClassTest {
         assertTrue(meta.hasGetter("richProperty"));
         assertTrue(meta.hasGetter("richList"));
         assertTrue(meta.hasGetter("richMap"));
-        assertTrue(meta.hasGetter("richList[0]"));
+        assertTrue(meta.hasGetter("richList[0].richField"));
 
         assertTrue(meta.hasGetter("richType"));
         assertTrue(meta.hasGetter("richType.richField"));

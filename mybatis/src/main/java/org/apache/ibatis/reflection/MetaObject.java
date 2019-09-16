@@ -118,7 +118,9 @@ public class MetaObject {
       } else {
         return metaValue.getValue(prop.getChildren());
       }
-    } else {
+    }
+    // 无子表达式
+    else {
       return objectWrapper.get(prop);
     }
   }
