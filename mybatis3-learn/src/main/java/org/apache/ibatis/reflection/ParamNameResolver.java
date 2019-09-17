@@ -1,6 +1,7 @@
 package org.apache.ibatis.reflection;
 
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
@@ -8,6 +9,7 @@ import org.apache.ibatis.session.RowBounds;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -18,8 +20,10 @@ import java.util.TreeMap;
  */
 public class ParamNameResolver {
 
+    private static final String GENERIC_NAME_PREFIX = "param";
+
     // 索引 - 真正参数名 映射map
-    private final SortedMap<Integer, String> maps;
+    private final SortedMap<Integer, String> names;
 
     // 是否有 @Param 注解
     private boolean hasParamAnnotation;
@@ -62,7 +66,37 @@ public class ParamNameResolver {
             map.put(paramIndex, name);
         }
         // 构建不可变对象
-        maps = Collections.unmodifiableSortedMap(map);
+        names = Collections.unmodifiableSortedMap(map);
+    }
+
+
+    // 获得 参数名 --- 值 的映射
+    public Object getNamedParams(Object[] args) {
+        // 参数个数
+        final int paramCount = names.size();
+        // 如果 args 为空 或者 names 长度为0，则返回 null
+        if (args == null || paramCount == 0) {
+            return null;
+        }
+        // 如果没有 @Param 注解 并且 参数长度只有1个
+        else if (!hasParamAnnotation && paramCount == 1) {
+            return args[names.firstKey()];
+        }
+        // 否则，获取映射map
+        else{
+            final Map<String, Object> paramMap = new MapperMethod.ParamMap<>();
+            int i = 0;
+            for (Map.Entry<Integer, String> entry : names.entrySet()) {
+                // 参数名 --- 值 映射
+                paramMap.put(entry.getValue(), args[entry.getKey()]);
+                final String genericParamName = GENERIC_NAME_PREFIX + String.valueOf(i);
+                if (!names.containsValue(genericParamName)) {
+                    paramMap.put(genericParamName, args[entry.getKey()]);
+                }
+                i++;
+            }
+            return paramMap;
+        }
     }
 
     private String getActualParamName(Method method, int paramIndex) {
