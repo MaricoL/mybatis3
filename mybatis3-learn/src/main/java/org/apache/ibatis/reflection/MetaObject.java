@@ -142,4 +142,8 @@ public class MetaObject {
     public boolean hasGetter(String name) {
         return objectWrapper.hasGetter(name);
     }
+
+    public boolean hasSetter(String name) {
+        return objectWrapper.hasSetter(name);
+    }
 }
