@@ -133,7 +133,7 @@ public class UnpooledDataSource implements DataSource {
                 // 放入 registeredDrivers 中
                 registeredDrivers.put(driver, driverInstance);
             } catch (Exception e) {
-                throw new SQLException("无法再 UnPooledDataSrouce 数据源中设置属性！，原因是：" + e);
+                throw new SQLException("无法在 UnPooledDataSrouce 数据源中设置属性！，原因是：" + e);
             }
         }
     }
@@ -242,5 +242,35 @@ public class UnpooledDataSource implements DataSource {
         return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     }
 
+    public String getDriver() {
+        return driver;
+    }
 
+    public void setDriver(String driver) {
+        this.driver = driver;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }
