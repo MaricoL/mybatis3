@@ -6,9 +6,9 @@ import org.apache.ibatis.logging.LogFactory;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+import java.sql.*;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -152,7 +152,7 @@ public class PooledDataSource implements DataSource {
                         if (longestCheckoutTime > poolMaximumCheckoutTime) {
                             // 将超时的连接数+1
                             poolState.claimedOverdueConnectionCount++;
-                            // 将 longestCheckoutTime 累加到 accumulatedCheckoutTimeOfOverdueConnections 进行统计 所有国企链接的检出时间
+                            // 将 longestCheckoutTime 累加到 accumulatedCheckoutTimeOfOverdueConnections 进行统计 所有超时连接的检出时间
                             poolState.accumulatedCheckoutTimeOfOverdueConnections += longestCheckoutTime;
                             // 将 longestCheckoutTime 累加到 accumulatedCheckoutTime 进行统计 所有连接的检出时间
                             poolState.accumulatedCheckoutTime += longestCheckoutTime;
@@ -191,7 +191,7 @@ public class PooledDataSource implements DataSource {
                                     log.debug("等待连接长达 " + poolTimeToWait + "秒。");
                                 }
                                 long wt = System.currentTimeMillis();
-                                // 等待，直到超时，或者从 pushConnection() 中归还连接时 唤醒
+                                // 等待，直到超时，或者从 pingConnection() 中归还连接时 唤醒
                                 poolState.wait(poolTimeToWait);
                                 // 统计等待的时间
                                 poolState.accumulatedWaitTime += System.currentTimeMillis() - wt;
@@ -309,10 +309,132 @@ public class PooledDataSource implements DataSource {
         }
     }
 
+    // 向数据库发送 ping 侦测查询语句，来判断你数据库语句是否有效
+    protected boolean pingConnection(PooledConnection conn) {
+        // 是否 ping 成功
+        boolean result;
+
+        // 判断 该连接 是否已经关闭，如果已经关闭了，肯定 ping 失败
+        try {
+            result = !conn.getRealConnection().isClosed();
+        } catch (SQLException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("连接：" + conn.getRealHashCode() + "侦测查询失败！原因是：" + e);
+            }
+            result = false;
+        }
+
+        if (result) {
+            // 是否启用 侦测查询
+            if (poolPingEnabled) {
+                // 判断是否长时间未使用，如果是，才发起 ping 查询
+                if (poolPingConnectionsNotUsedFor >= 0 && conn.getTimeElapsedSinceLastUse() > poolPingConnectionsNotUsedFor) {
+                    try {
+                        if (log.isDebugEnabled()) {
+                            log.debug("连接：" + conn.getRealHashCode() + " 正在发起 ping这侦测查询。。。。。");
+                        }
+                        // 获取 连接
+                        Connection realConn = conn.getRealConnection();
+                        // 执行 侦测查询
+                        try (Statement statement = realConn.createStatement()) {
+                            statement.executeQuery(poolPingQuery).close();
+                        }
+                        // 如果 连接 是 非自动提交，则进行回滚
+                        if (!realConn.getAutoCommit()) {
+                            realConn.rollback();
+                        }
+                        // 设置标识为 true，表示 侦测查询 成功
+                        result = true;
+                        if (log.isDebugEnabled()) {
+                            log.warn("该连接：" + conn.getRealHashCode() + " 执行侦测查询成功，连接正常！");
+                        }
+                    } catch (Exception e) {
+                        log.warn("连接 " + conn.getRealHashCode() + " 执行侦测查询失败！原因：" + e.getMessage());
+                        // 关闭 真实连接
+                        try {
+                            conn.getRealConnection().close();
+                        } catch (SQLException ex) {
+                            // 忽略异常信息
+                            // ex.printStackTrace();
+                        }
+
+                        // 设置标识为 false，表示 侦测查询 失败
+                        result = false;
+                        if (log.isDebugEnabled()) {
+                            log.debug("该连接：" + conn.getRealHashCode() + " 不正常！原因：" + e.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    // 强制关闭所有 活跃连接集合(activeConnections) 和 空闲连接集合(idleConnections) 中所有的连接
+    public void forceCloseAll() {
+        synchronized (poolState) {
+            // 计算 数据源标识信息
+            expectedConnectionTypeCode = assembleConnectionTypeCode(dataSource.getUrl(), dataSource.getUsername(), dataSource.getPassword());
+            // 遍历 活跃连接集合
+            for (int i = poolState.activeConnections.size(); i > 0; i--) {
+                try {
+                    // 将 每个连接 从 集合 中移除
+                    PooledConnection conn = poolState.activeConnections.remove(i - 1);
+                    // 并将 连接 设置为 无效
+                    conn.invalidate();
+
+                    // 如果有事务未提交，则 回滚事务
+                    Connection realConn = conn.getRealConnection();
+                    if (!realConn.getAutoCommit()) {
+                        realConn.rollback();
+                    }
+                } catch (Exception e) {
+                    // 忽略异常信息
+                    // e.printStackTrace();
+                }
+            }
+
+            for (int i = poolState.idleConnections.size(); i > 0; i--) {
+                try {
+                    // 将 每个连接 从 集合 中移除
+                    PooledConnection conn = poolState.idleConnections.remove(i - 1);
+                    // 并将 连接 设置为 无效
+                    conn.invalidate();
+
+                    // 如果有事务未提交，则 回滚事务
+                    Connection realConn = conn.getRealConnection();
+                    if (!realConn.getAutoCommit()) {
+                        realConn.rollback();
+                    }
+                } catch (Exception e) {
+                    // 忽略异常信息
+                    // e.printStackTrace();
+                }
+            }
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("池化数据源已经强制关闭所有的连接！");
+        }
+    }
+
+    // 获得真正的 Connection 对象
+    public static Connection unwrapConnection(Connection conn) {
+        // 如果传入的时代理对象
+        if (Proxy.isProxyClass(conn.getClass())) {
+            // 获得 InvocationHandler 对象
+            InvocationHandler invocationHandler = Proxy.getInvocationHandler(conn);
+            // 如果时 PooledConnection 类型
+            if (invocationHandler instanceof PooledConnection) {
+                return ((PooledConnection) invocationHandler).getRealConnection();
+            }
+        }
+        return conn;
+    }
+
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        return null;
+        throw new SQLException(getClass().getName() + " 不是一个包装类！");
     }
 
     @Override
@@ -321,35 +443,108 @@ public class PooledDataSource implements DataSource {
     }
 
     @Override
-    public PrintWriter getLogWriter() throws SQLException {
-        return null;
+    public void setLogWriter(PrintWriter logWriter) {
+        DriverManager.setLogWriter(logWriter);
     }
 
     @Override
-    public void setLogWriter(PrintWriter out) throws SQLException {
-
+    public PrintWriter getLogWriter() {
+        return DriverManager.getLogWriter();
     }
 
     @Override
-    public void setLoginTimeout(int seconds) throws SQLException {
-
+    public void setLoginTimeout(int loginTimeout) throws SQLException {
+        DriverManager.setLoginTimeout(loginTimeout);
     }
 
     @Override
-    public int getLoginTimeout() throws SQLException {
-        return 0;
+    public int getLoginTimeout() {
+        return DriverManager.getLoginTimeout();
     }
 
     @Override
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        return null;
+        return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     }
 
-    public int getExpectedConnectionTypeCode() {
-        return expectedConnectionTypeCode;
+    // 当 PooledDataSource对象 被释放时执行
+    @Override
+    protected void finalize() throws Throwable {
+        // 关闭池中所有的连接
+        forceCloseAll();
+        super.finalize();
     }
 
-    public void setExpectedConnectionTypeCode(int expectedConnectionTypeCode) {
-        this.expectedConnectionTypeCode = expectedConnectionTypeCode;
+
+    public String getDriver() {
+        return dataSource.getDriver();
     }
+
+    public String getUrl() {
+        return dataSource.getUrl();
+    }
+
+    public String getUsername() {
+        return dataSource.getUsername();
+    }
+
+    public String getPassword() {
+        return dataSource.getPassword();
+    }
+
+    public boolean isAutoCommit() {
+        return dataSource.isAutoCommit();
+    }
+
+    public Integer getDefaultTransactionIsolationLevel() {
+        return dataSource.getDefaultTransactionIsolationLevel();
+    }
+
+    public Properties getDriverProperties() {
+        return dataSource.getDriverProperties();
+    }
+
+    public Integer getDefaultNetworkTimeout() {
+        return dataSource.getDefaultNetworkTimeout();
+    }
+
+    public int getPoolMaximumActiveConnections() {
+        return poolMaximumActiveConnections;
+    }
+
+    public int getPoolMaximumIdleConnections() {
+        return poolMaximumIdleConnections;
+    }
+
+    public int getPoolMaximumLocalBadConnectionTolerance() {
+        return poolMaximumLocalBadConnectionTolerance;
+    }
+
+    public int getPoolMaximumCheckoutTime() {
+        return poolMaximumCheckoutTime;
+    }
+
+    public int getPoolTimeToWait() {
+        return poolTimeToWait;
+    }
+
+    public String getPoolPingQuery() {
+        return poolPingQuery;
+    }
+
+    public boolean isPoolPingEnabled() {
+        return poolPingEnabled;
+    }
+
+    public int getPoolPingConnectionsNotUsedFor() {
+        return poolPingConnectionsNotUsedFor;
+    }
+
+
+
+    public PoolState getPoolState() {
+        return poolState;
+    }
+
+
 }

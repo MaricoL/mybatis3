@@ -242,6 +242,31 @@ public class UnpooledDataSource implements DataSource {
         return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     }
 
+
+    public ClassLoader getDriverClassLoader() {
+        return driverClassLoader;
+    }
+
+    public Properties getDriverProperties() {
+        return driverProperties;
+    }
+
+    public static Map<String, Driver> getRegisteredDrivers() {
+        return registeredDrivers;
+    }
+
+    public Boolean isAutoCommit() {
+        return autoCommit;
+    }
+
+    public Integer getDefaultTransactionIsolationLevel() {
+        return defaultTransactionIsolationLevel;
+    }
+
+    public Integer getDefaultNetworkTimeout() {
+        return defaultNetworkTimeout;
+    }
+
     public String getDriver() {
         return driver;
     }
@@ -273,4 +298,6 @@ public class UnpooledDataSource implements DataSource {
     public void setPassword(String password) {
         this.password = password;
     }
+
+
 }
