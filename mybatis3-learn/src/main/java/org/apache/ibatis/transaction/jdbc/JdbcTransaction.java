@@ -4,15 +4,15 @@ import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.apache.ibatis.session.TransactionIsolationLevel;
 import org.apache.ibatis.transaction.Transaction;
+import org.apache.ibatis.transaction.TransactionException;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.logging.Logger;
 
 /**
- * @description 基于JDBC事务实现类
  * @author mrjimmylin
+ * @description 基于JDBC事务实现类
  * @date 2019/9/23 16:37
  */
 public class JdbcTransaction implements Transaction {
@@ -55,30 +55,75 @@ public class JdbcTransaction implements Transaction {
         // 从 数据源 中获取 连接
         connection = dataSource.getConnection();
         // 设置 事务隔离等级
-        if (connection == null) {
+        if (connection != null) {
             connection.setTransactionIsolation(level.getLevel());
         }
         // 设置 是否自动提交
         setDesiredAutocommit(autoCommit);
     }
 
+    // 设置 自动提交
     private void setDesiredAutocommit(boolean autoCommit) {
-
+        try {
+            if (connection.getAutoCommit() != autoCommit) {
+                if (log.isDebugEnabled()) {
+                    log.debug("将连接 " + connection + " 设置为自动提交!!");
+                }
+                connection.setAutoCommit(autoCommit);
+            }
+        } catch (SQLException e) {
+            throw new TransactionException("无法设置自动提交参数，您的驱动可能不支持 setAutoCommit() 方法！" +
+                    "原因：" + e.getCause());
+        }
     }
 
+    // 关闭 连接
     @Override
     public void close() throws SQLException {
+        if (connection != null) {
+            // 将 自动提交 设置为 true
+            resetAutoCommit();
+            if (log.isDebugEnabled()) {
+                log.debug("关闭连接 " + connection);
+            }
+            connection.close();
+        }
+    }
 
+    // 从新设置 自动提交
+    private void resetAutoCommit() {
+        try {
+            if (!connection.getAutoCommit()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("将 连接：" + connection + " 的自动提交重新设置为 true！");
+                }
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("在 关闭连接前，无法将 自动提交 设置为 true。原因：" + e.getCause());
+            }
+        }
     }
 
     @Override
     public void commit() throws SQLException {
-
+        if (connection != null && !connection.getAutoCommit()) {
+            if (log.isDebugEnabled()) {
+                log.debug("连接 即将提交！");
+            }
+            connection.commit();
+        }
     }
 
     @Override
     public void rollback() throws SQLException {
-
+        if (connection != null && !connection.getAutoCommit()) {
+            if (log.isDebugEnabled()) {
+                log.debug("连接 即将回滚！");
+            }
+            connection.rollback();
+        }
     }
 
     @Override
