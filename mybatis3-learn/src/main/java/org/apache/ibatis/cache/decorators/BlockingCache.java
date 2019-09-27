@@ -21,8 +21,8 @@ public class BlockingCache implements Cache {
     // 缓存 键 与 ReentrantLock对象 的 映射
     private ConcurrentHashMap<Object, ReentrantLock> locks;
 
-    public BlockingCache(long timeout) {
-        this.timeout = timeout;
+    public BlockingCache(Cache delegate) {
+        this.delegate = delegate;
         this.locks = new ConcurrentHashMap<>();
     }
 
