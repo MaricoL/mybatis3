@@ -16,6 +16,10 @@ public class LruCache implements Cache {
     private final Cache delegate;
 
     // 基于 LinkedHashMap 实现淘汰机制
+    // 用于记录 delegate（HashMap） 中键的情况，由于 delegate（HashMap）在put的时候没有检测是否要删除最早的元素功能
+    // putObject的时候，会先加入delegate，然后会加入keyMap，这个时候会自动检测是否删除 keyMap 中最早的一个，
+    // 将 即将要删除的 key 获取并赋值给 eldestKey
+    // 然后再将 eldestKey 从 delegate 中删除
     private Map<Object, Object> keyMap;
 
     // 最老的键，即将要被淘汰的

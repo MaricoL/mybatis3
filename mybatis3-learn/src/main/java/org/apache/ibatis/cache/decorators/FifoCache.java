@@ -47,7 +47,7 @@ public class FifoCache implements Cache {
 
     @Override
     public Object removeObject(Object object) {
-        // TODO: 再移除 key 的时候应该可以要从 keyList 中移除 该key
+        // TODO: 在移除 key 的时候应该也要从 keyList 中移除 该key
         return delegate.removeObject(object);
     }
 
